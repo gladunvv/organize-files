@@ -1,0 +1,24 @@
+{
+  "name": "organize-files",
+  "version": "1.0.0",
+  "description": "loftchool course",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gladunvv/organize-files.git"
+  },
+  "keywords": [
+    "node.js",
+    "organize",
+    "loftchool"
+  ],
+  "author": "Gladun Vladislav",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gladunvv/organize-files/issues"
+  },
+  "homepage": "https://github.com/gladunvv/organize-files#readme"
+}
