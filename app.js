@@ -3,8 +3,9 @@ const path = require('path');
 
 let initialDir = process.argv[2];
 let destinationDir = process.argv[3];
-let removeInit = process.argv[4] === 'rmd';
+const removeInit = process.argv[4] === 'rmd';
 
+const expansions = ['.mp3'];
 
 if (!initialDir || !destinationDir) {
   console.error('Не указанна начальная и конечная папка');
@@ -14,6 +15,83 @@ if (!initialDir || !destinationDir) {
   destinationDir = path.join(__dirname, destinationDir);
 }
 
-console.log('initialDir :', initialDir);
-console.log('destinationDir :', destinationDir);
-console.log('removeInit :', removeInit);
+if (!fs.existsSync(destinationDir)) {
+  fs.mkdir(destinationDir, err => {
+    if (err) {
+      console.error(err);
+      process.exit(1);
+    }
+    main();
+  });
+} else {
+  main();
+}
+
+function main () {
+  let count = 0;
+
+  const rmInitDir = dirPath => {
+    if (fs.existsSync(dirPath)) {
+      fs.readdirSync(dirPath).forEach(point => {
+        const entryPoint = path.join(dirPath, point);
+        if (fs.statSync(entryPoint).isDirectory()) {
+          rmInitDir(entryPoint);
+        } else {
+          fs.unlinkSync(entryPoint);
+        }
+      });
+    }
+    fs.rmdirSync(dirPath);
+  };
+
+  const countsFiles = base => {
+    fs.readdirSync(base).forEach(item => {
+      const internalDir = path.join(base, item);
+      const state = fs.statSync(internalDir);
+      if (state.isFile() && expansions.indexOf(path.extname(internalDir)) !== -1) {
+        count += 1;
+      } else if (state.isDirectory()) {
+        countsFiles(internalDir);
+      }
+    });
+  };
+
+  const iterateDir = base => {
+    fs.readdir(base, (err, files) => {
+      if (err) {
+        console.error(err);
+        process.exit(1);
+      }
+      files.forEach(item => {
+        fs.stat(path.join(base, item), (err, stats) => {
+          if (err) {
+            console.error(err);
+            process.exit(1);
+          }
+          if (stats.isDirectory()) {
+            iterateDir(path.join(base, item));
+          } else {
+            const newDir = path.join(destinationDir, item.charAt(0).toUpperCase());
+            if (expansions.indexOf(path.extname(item)) !== -1) {
+              if (!fs.existsSync(newDir)) {
+                fs.mkdirSync(newDir);
+              }
+              fs.copyFile(path.join(base, item), path.join(newDir, item), err => {
+                if (err) {
+                  console.error(err);
+                }
+                count -= 1;
+                if (removeInit && count === 0) {
+                  rmInitDir(initialDir);
+                }
+              });
+            }
+          }
+        });
+      });
+    });
+  };
+
+  countsFiles(initialDir);
+  iterateDir(initialDir);
+}
