@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 
-
 let initialDir = process.argv[2];
 let destinationDir = process.argv[3];
 const removeInit = process.argv[4] === 'rmd';
