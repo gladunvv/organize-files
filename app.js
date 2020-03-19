@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
+
 let initialDir = process.argv[2];
 let destinationDir = process.argv[3];
 const removeInit = process.argv[4] === 'rmd';
@@ -56,7 +57,7 @@ function main () {
     });
   };
 
-  const iterateDir = base => {
+  const iterateDir = async base => {
     fs.readdir(base, (err, files) => {
       if (err) {
         console.error(err);
@@ -74,7 +75,7 @@ function main () {
             const newDir = path.join(destinationDir, item.charAt(0).toUpperCase());
             if (expansions.indexOf(path.extname(item)) !== -1) {
               if (!fs.existsSync(newDir)) {
-                fs.mkdirSync(newDir);
+                fs.mkdir(newDir);
               }
               fs.copyFile(path.join(base, item), path.join(newDir, item), err => {
                 if (err) {
