@@ -44,26 +44,32 @@ function main () {
     fs.rmdirSync(dirPath);
   };
 
-  const countsFiles = base => {
-    fs.readdirSync(base).forEach(item => {
-      const internalDir = path.join(base, item);
-      const state = fs.statSync(internalDir);
-      if (state.isFile() && expansions.indexOf(path.extname(internalDir)) !== -1) {
-        count += 1;
-      } else if (state.isDirectory()) {
-        countsFiles(internalDir);
-      }
-    });
-  };
-
-  const iterateDir = async base => {
-    fs.readdir(base, (err, files) => {
+  const countsFiles = async base => {
+    await fs.readdir(base, (err, files) => {
       if (err) {
         console.error(err);
         process.exit(1);
       }
       files.forEach(item => {
-        fs.stat(path.join(base, item), (err, stats) => {
+        const internalDir = path.join(base, item);
+        const state = fs.statSync(internalDir);
+        if (state.isFile() && expansions.indexOf(path.extname(internalDir)) !== -1) {
+          count += 1;
+        } else if (state.isDirectory()) {
+          countsFiles(internalDir);
+        }
+      });
+    });
+  };
+
+  const iterateDir = async base => {
+    await fs.readdir(base, (err, files) => {
+      if (err) {
+        console.error(err);
+        process.exit(1);
+      }
+      files.forEach(item => {
+        fs.stat(path.join(base, item), async (err, stats) => {
           if (err) {
             console.error(err);
             process.exit(1);
@@ -74,9 +80,14 @@ function main () {
             const newDir = path.join(destinationDir, item.charAt(0).toUpperCase());
             if (expansions.indexOf(path.extname(item)) !== -1) {
               if (!fs.existsSync(newDir)) {
-                fs.mkdir(newDir);
+                await fs.mkdir(newDir, err => {
+                  if (err) {
+                    console.error(err);
+                    process.exit(1);
+                  }
+                });
               }
-              fs.copyFile(path.join(base, item), path.join(newDir, item), err => {
+              await fs.copyFile(path.join(base, item), path.join(newDir, item), err => {
                 if (err) {
                   console.error(err);
                 }
