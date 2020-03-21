@@ -1,5 +1,11 @@
 const fs = require('fs');
 const path = require('path');
+const { promisify } = require('util');
+
+const readDirAsync = promisify(fs.readdir);
+const statAsync = promisify(fs.stat);
+const mkdirAsync = promisify(fs.mkdir);
+const copyFileAsync = promisify(fs.copyFile);
 
 let initialDir = process.argv[2];
 let destinationDir = process.argv[3];
@@ -45,11 +51,8 @@ function main () {
   };
 
   const countsFiles = async base => {
-    await fs.readdir(base, (err, files) => {
-      if (err) {
-        console.error(err);
-        process.exit(1);
-      }
+    try {
+      const files = await readDirAsync(base);
       files.forEach(item => {
         const internalDir = path.join(base, item);
         const state = fs.statSync(internalDir);
@@ -59,50 +62,43 @@ function main () {
           countsFiles(internalDir);
         }
       });
-    });
+    } catch (err) {
+      console.error(err);
+      process.exit(1);
+    }
   };
 
   const iterateDir = async base => {
-    await fs.readdir(base, (err, files) => {
-      if (err) {
-        console.error(err);
-        process.exit(1);
-      }
-      files.forEach(item => {
-        fs.stat(path.join(base, item), async (err, stats) => {
-          if (err) {
-            console.error(err);
-            process.exit(1);
-          }
+    try {
+      const files = await readDirAsync(base);
+      files.forEach(async item => {
+        try {
+          const stats = await statAsync(path.join(base, item));
           if (stats.isDirectory()) {
             iterateDir(path.join(base, item));
           } else {
             const newDir = path.join(destinationDir, item.charAt(0).toUpperCase());
             if (expansions.indexOf(path.extname(item)) !== -1) {
               if (!fs.existsSync(newDir)) {
-                await fs.mkdir(newDir, err => {
-                  if (err) {
-                    console.error(err);
-                    process.exit(1);
-                  }
-                });
+                await mkdirAsync(newDir);
               }
-              await fs.copyFile(path.join(base, item), path.join(newDir, item), err => {
-                if (err) {
-                  console.error(err);
-                }
-                count -= 1;
-                if (removeInit && count === 0) {
-                  rmInitDir(initialDir);
-                }
-              });
+              await copyFileAsync(path.join(base, item), path.join(newDir, item));
+              count -= 1;
+              if (removeInit && count === 0) {
+                rmInitDir(initialDir);
+              }
             }
           }
-        });
+        } catch (err) {
+          console.error(err);
+          process.exit(1);
+        }
       });
-    });
+    } catch (err) {
+      console.error(err);
+      process.exit(1);
+    }
   };
-
   countsFiles(initialDir);
   iterateDir(initialDir);
 }
