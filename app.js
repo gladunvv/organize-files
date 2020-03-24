@@ -1,5 +1,11 @@
 const fs = require('fs');
 const path = require('path');
+const { promisify } = require('util');
+
+const readDirAsync = promisify(fs.readdir);
+const statAsync = promisify(fs.stat);
+const mkdirAsync = promisify(fs.mkdir);
+const copyFileAsync = promisify(fs.copyFile);
 
 let initialDir = process.argv[2];
 let destinationDir = process.argv[3];
@@ -44,54 +50,55 @@ function main () {
     fs.rmdirSync(dirPath);
   };
 
-  const countsFiles = base => {
-    fs.readdirSync(base).forEach(item => {
-      const internalDir = path.join(base, item);
-      const state = fs.statSync(internalDir);
-      if (state.isFile() && expansions.indexOf(path.extname(internalDir)) !== -1) {
-        count += 1;
-      } else if (state.isDirectory()) {
-        countsFiles(internalDir);
-      }
-    });
+  const countsFiles = async base => {
+    try {
+      const files = await readDirAsync(base);
+      files.forEach(item => {
+        const internalDir = path.join(base, item);
+        const state = fs.statSync(internalDir);
+        if (state.isFile() && expansions.indexOf(path.extname(internalDir)) !== -1) {
+          count += 1;
+        } else if (state.isDirectory()) {
+          countsFiles(internalDir);
+        }
+      });
+    } catch (err) {
+      console.error(err);
+      process.exit(1);
+    }
   };
 
   const iterateDir = async base => {
-    fs.readdir(base, (err, files) => {
-      if (err) {
-        console.error(err);
-        process.exit(1);
-      }
-      files.forEach(item => {
-        fs.stat(path.join(base, item), (err, stats) => {
-          if (err) {
-            console.error(err);
-            process.exit(1);
-          }
+    try {
+      const files = await readDirAsync(base);
+      files.forEach(async item => {
+        try {
+          const stats = await statAsync(path.join(base, item));
           if (stats.isDirectory()) {
             iterateDir(path.join(base, item));
           } else {
             const newDir = path.join(destinationDir, item.charAt(0).toUpperCase());
             if (expansions.indexOf(path.extname(item)) !== -1) {
               if (!fs.existsSync(newDir)) {
-                fs.mkdir(newDir);
+                await mkdirAsync(newDir);
               }
-              fs.copyFile(path.join(base, item), path.join(newDir, item), err => {
-                if (err) {
-                  console.error(err);
-                }
-                count -= 1;
-                if (removeInit && count === 0) {
-                  rmInitDir(initialDir);
-                }
-              });
+              await copyFileAsync(path.join(base, item), path.join(newDir, item));
+              count -= 1;
+              if (removeInit && count === 0) {
+                rmInitDir(initialDir);
+              }
             }
           }
-        });
+        } catch (err) {
+          console.error(err);
+          process.exit(1);
+        }
       });
-    });
+    } catch (err) {
+      console.error(err);
+      process.exit(1);
+    }
   };
-
   countsFiles(initialDir);
   iterateDir(initialDir);
 }
